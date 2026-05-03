@@ -6,13 +6,11 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const VIDEO_SRC = "/videos/rolex-hero.mp4";
 
-const POSTER =
-  "https://images.unsplash.com/photo-1540967247317-16b0c1d1de63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1920";
+const POSTER = "https://images.unsplash.com/photo-1540967247317-16b0c1d1de63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1920";
 
-/** Skip micro-seeks; ~half a frame at 60fps for typical clip lengths */
-const TIME_EPSILON = 1 / 120;
+const PIN_SCROLL_END = "+=5000";
 
-const PIN_SCROLL_PX = 3800;
+type ScrubTween = gsap.core.Tween & { scrollTrigger?: ScrollTrigger };
 
 export const RolexScrollHero = () => {
   const sectionRef = useRef<HTMLElement>(null);
@@ -23,81 +21,80 @@ export const RolexScrollHero = () => {
     const video = videoRef.current;
     if (!section || !video) return;
 
-    const videoState = { time: 0 };
-
     video.pause();
     video.currentTime = 0;
+    video.removeAttribute("autoplay");
 
     gsap.registerPlugin(ScrollTrigger);
 
-    let scrollTriggerInstance: ScrollTrigger | null = null;
-    let rafId = 0;
-    let running = true;
+    let scrubTween: ScrubTween | null = null;
+    let applyRafId = 0;
 
-    const rampTime = gsap.quickTo(videoState, "time", {
-      duration: 0.14,
-      ease: "power2.out",
-    });
-
-    const tick = () => {
-      if (!running) return;
-
-      rafId = window.requestAnimationFrame(tick);
+    const linkScrollToVideo = () => {
+      if (scrubTween) return;
 
       const dur = video.duration;
       if (!Number.isFinite(dur) || dur <= 0) return;
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
 
-      const target = gsap.utils.clamp(0, dur, videoState.time);
-      const diff = Math.abs(video.currentTime - target);
-      if (diff > TIME_EPSILON) {
+      // Scroll-scrub: tween a plain { t }, not video.currentTime — GSAP directly
+      // animating HTMLVideoElement.currentTime fights the decoder. One rAF flush
+      // applies the latest t. ScrollTrigger scrub: 1.5 smooths scroll → time.
+
+      const scrubState = { t: 0 };
+
+      const flushVideoTime = () => {
+        applyRafId = 0;
+        const d = video.duration;
+        if (!Number.isFinite(d) || d <= 0) return;
+        if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+        const next = Math.min(d, Math.max(0, scrubState.t));
         try {
-          video.currentTime = target;
+          if (Math.abs(video.currentTime - next) > 1e-4) {
+            video.currentTime = next;
+          }
         } catch {
-          /* seek not ready yet */
+          /* seek not ready */
         }
-      }
-    };
+      };
 
-    const connectScrub = () => {
-      if (scrollTriggerInstance) return;
-
-      const dur = video.duration;
-      if (!Number.isFinite(dur) || dur <= 0) return;
-      if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-
-      scrollTriggerInstance = ScrollTrigger.create({
-        trigger: section,
-        start: "top top",
-        end: `+=${PIN_SCROLL_PX}`,
-        pin: true,
-        scrub: 1.4,
-        anticipatePin: 1,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          const d = video.duration;
-          if (!Number.isFinite(d) || d <= 0) return;
-          if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-
-          rampTime(self.progress * d);
+      scrubTween = gsap.fromTo(
+        scrubState,
+        { t: 0 },
+        {
+          t: dur,
+          ease: "none",
+          immediateRender: false,
+          onUpdate: () => {
+            if (!applyRafId) {
+              applyRafId = window.requestAnimationFrame(flushVideoTime);
+            }
+          },
+          scrollTrigger: {
+            trigger: section,
+            start: "top top",
+            end: PIN_SCROLL_END,
+            pin: true,
+            scrub: 1.5,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          },
         },
-      });
-
-      rafId = window.requestAnimationFrame(tick);
+      ) as ScrubTween;
     };
 
     const onLoadedMetadata = () => {
-      connectScrub();
+      linkScrollToVideo();
     };
+
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
 
     if (
       video.readyState >= HTMLMediaElement.HAVE_METADATA &&
       Number.isFinite(video.duration) &&
       video.duration > 0
     ) {
-      connectScrub();
-    } else {
-      video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+      linkScrollToVideo();
     }
 
     const onResize = () => {
@@ -106,15 +103,16 @@ export const RolexScrollHero = () => {
     window.addEventListener("resize", onResize);
 
     return () => {
-      running = false;
-      window.cancelAnimationFrame(rafId);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       window.removeEventListener("resize", onResize);
 
-      scrollTriggerInstance?.kill();
-      scrollTriggerInstance = null;
+      window.cancelAnimationFrame(applyRafId);
+      applyRafId = 0;
 
-      gsap.killTweensOf(videoState);
+      scrubTween?.scrollTrigger?.kill();
+      scrubTween?.kill();
+      scrubTween = null;
+
       ScrollTrigger.getAll().forEach((st) => {
         if (st.trigger === section) st.kill();
       });
@@ -131,7 +129,7 @@ export const RolexScrollHero = () => {
       <video
         ref={videoRef}
         src={VIDEO_SRC}
-        className="pointer-events-none absolute inset-0 z-0 object-cover"
+        className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
         style={{
           width: "100vw",
           height: "100vh",
