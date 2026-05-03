@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-const VIDEO_SRC = "/videos/rolex-hero.mp4";
+const VIDEO_SRC = "/videos/0503.mov";
 
-const POSTER = "https://images.unsplash.com/photo-1540967247317-16b0c1d1de63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1920";
+const PIN_SCROLL_END = "+=4000";
 
-const PIN_SCROLL_END = "+=5000";
+const SEEK_THRESHOLD_SEC = 0.04;
 
-type ScrubTween = gsap.core.Tween & { scrollTrigger?: ScrollTrigger };
+const SCRUB_SEC = 0.5;
 
 export const RolexScrollHero = () => {
   const sectionRef = useRef<HTMLElement>(null);
@@ -27,60 +27,46 @@ export const RolexScrollHero = () => {
 
     gsap.registerPlugin(ScrollTrigger);
 
-    let scrubTween: ScrubTween | null = null;
-    let applyRafId = 0;
+    let progressTween: gsap.core.Tween | null = null;
 
     const linkScrollToVideo = () => {
-      if (scrubTween) return;
+      if (progressTween) return;
 
       const dur = video.duration;
       if (!Number.isFinite(dur) || dur <= 0) return;
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
 
-      // Scroll-scrub: tween a plain { t }, not video.currentTime — GSAP directly
-      // animating HTMLVideoElement.currentTime fights the decoder. One rAF flush
-      // applies the latest t. ScrollTrigger scrub: 1.5 smooths scroll → time.
+      const progressState = { progress: 0 };
 
-      const scrubState = { t: 0 };
+      progressTween = gsap.to(progressState, {
+        progress: 1,
+        ease: "none",
+        immediateRender: false,
+        scrollTrigger: {
+          trigger: section,
+          start: "top top",
+          end: PIN_SCROLL_END,
+          pin: true,
+          scrub: SCRUB_SEC,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            const d = video.duration;
+            if (!Number.isFinite(d) || d <= 0) return;
+            if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
 
-      const flushVideoTime = () => {
-        applyRafId = 0;
-        const d = video.duration;
-        if (!Number.isFinite(d) || d <= 0) return;
-        if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-        const next = Math.min(d, Math.max(0, scrubState.t));
-        try {
-          if (Math.abs(video.currentTime - next) > 1e-4) {
-            video.currentTime = next;
-          }
-        } catch {
-          /* seek not ready */
-        }
-      };
+            const targetTime = self.progress * d;
 
-      scrubTween = gsap.fromTo(
-        scrubState,
-        { t: 0 },
-        {
-          t: dur,
-          ease: "none",
-          immediateRender: false,
-          onUpdate: () => {
-            if (!applyRafId) {
-              applyRafId = window.requestAnimationFrame(flushVideoTime);
+            try {
+              if (Math.abs(video.currentTime - targetTime) > SEEK_THRESHOLD_SEC) {
+                video.currentTime = targetTime;
+              }
+            } catch {
+              /* seek not ready */
             }
           },
-          scrollTrigger: {
-            trigger: section,
-            start: "top top",
-            end: PIN_SCROLL_END,
-            pin: true,
-            scrub: 1.5,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-          },
         },
-      ) as ScrubTween;
+      });
     };
 
     const onLoadedMetadata = () => {
@@ -106,12 +92,9 @@ export const RolexScrollHero = () => {
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       window.removeEventListener("resize", onResize);
 
-      window.cancelAnimationFrame(applyRafId);
-      applyRafId = 0;
-
-      scrubTween?.scrollTrigger?.kill();
-      scrubTween?.kill();
-      scrubTween = null;
+      progressTween?.scrollTrigger?.kill();
+      progressTween?.kill();
+      progressTween = null;
 
       ScrollTrigger.getAll().forEach((st) => {
         if (st.trigger === section) st.kill();
@@ -140,7 +123,6 @@ export const RolexScrollHero = () => {
         preload="auto"
         playsInline
         muted
-        poster={POSTER}
         aria-hidden
       />
 
