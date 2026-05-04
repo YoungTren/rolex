@@ -55,7 +55,7 @@ export const RolexBoutiqueScrollSection = () => {
   }, []);
 
   return (
-    <section className="relative h-screen w-full max-w-none overflow-hidden bg-black">
+    <section className="relative -mt-[300px] h-screen w-full max-w-none overflow-hidden bg-black">
       <video
         src={VIDEO_SRC}
         className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
