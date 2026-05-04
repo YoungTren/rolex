@@ -83,12 +83,19 @@ export const RolexScrollHero = () => {
       linkScrollToVideo();
     }
 
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => ScrollTrigger.refresh());
+    });
+
     const onResize = () => {
       ScrollTrigger.refresh();
     };
     window.addEventListener("resize", onResize);
 
     return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       window.removeEventListener("resize", onResize);
 

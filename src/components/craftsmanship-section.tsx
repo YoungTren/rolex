@@ -15,13 +15,13 @@ export const CraftsmanshipSection = () => {
 
   const opacity = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.8, 1],
-    [0, 1, 1, 0],
+    [0, 0.06, 0.12, 0.88, 0.94, 1],
+    [0.45, 0.88, 1, 1, 0.88, 0.45],
   );
   const textY = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.8, 1],
-    [50, 0, 0, -50],
+    [0, 0.12, 0.88, 1],
+    [36, 0, 0, -28],
   );
 
   return (

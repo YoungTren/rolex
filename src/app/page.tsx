@@ -1,6 +1,8 @@
 import { CraftsmanshipSection } from "@/components/craftsmanship-section";
 import { ComponentsSection } from "@/components/components-section";
+import { RolexBoutiqueScrollSection } from "@/components/rolex-boutique-scroll-section";
 import { RolexScrollHero } from "@/components/rolex-scroll-hero";
+import { ScrollOrbitSection } from "@/components/scroll-orbit-section";
 
 export default function Home() {
   return (
@@ -8,6 +10,8 @@ export default function Home() {
       <RolexScrollHero />
       <ComponentsSection />
       <CraftsmanshipSection />
+      <RolexBoutiqueScrollSection />
+      <ScrollOrbitSection />
     </main>
   );
 }

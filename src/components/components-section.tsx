@@ -1,12 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  motion,
-  useScroll,
-  useSpring,
-  useTransform,
-} from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 
 import { ComponentModal } from "@/components/component-modal";
 
@@ -83,33 +78,27 @@ export const ComponentsSection = () => {
     offset: ["start end", "end start"],
   });
 
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 42,
-    damping: 32,
-    mass: 0.65,
-    restDelta: 0.0005,
-  });
-
+  /** Stay readable after long pinned sections (hero): avoid 0 opacity at scroll extremes. */
   const cardOpacity = useTransform(
-    smoothProgress,
-    [0, 0.06, 0.14, 0.86, 0.94, 1],
-    [0, 0.35, 1, 1, 0.35, 0],
+    scrollYProgress,
+    [0, 0.06, 0.12, 0.88, 0.94, 1],
+    [0.55, 0.85, 1, 1, 0.85, 0.55],
   );
 
   const leftX = useTransform(
-    smoothProgress,
+    scrollYProgress,
     [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [-150, -100, -52, 0, 0, -52, -100, -150],
+    [-72, -48, -28, 0, 0, -28, -48, -72],
   );
   const rightX = useTransform(
-    smoothProgress,
+    scrollYProgress,
     [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [150, 100, 52, 0, 0, 52, 100, 150],
+    [72, 48, 28, 0, 0, 28, 48, 72],
   );
   const centerY = useTransform(
-    smoothProgress,
+    scrollYProgress,
     [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [140, 88, 44, 0, 0, 44, 88, 140],
+    [72, 48, 24, 0, 0, 24, 48, 72],
   );
 
   return (
@@ -147,7 +136,6 @@ export const ComponentsSection = () => {
             return (
               <motion.div
                 key={component.id}
-                className="min-h-0"
                 style={{
                   x: isLeft ? leftX : isRight ? rightX : 0,
                   y: isCenter ? centerY : 0,
