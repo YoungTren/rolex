@@ -12,12 +12,11 @@ const SECTION_HEIGHT_VH = 172;
 
 const LERP = 0.068;
 
-/** Ellipse vertical radius as a fraction of horizontal (subtle arc for a wide layout). */
+/** Ellipse vertical semi-axis as fraction of horizontal — wide shallow ring like the original layout. */
 const RADIUS_Y_RATIO = 0.33;
 
 /**
- * Target orbit semi-axis as fraction of stage width — kept high so
- * `min(radiusXIdeal, radiusXMax)` === `radiusXMax` (full width within margins).
+ * Target horizontal semi-axis as fraction of stage width — clamped by stage minus card half-width.
  */
 const RADIUS_X_RATIO = 0.98;
 
@@ -28,12 +27,34 @@ const ORBIT_IMAGES = [
   "/images/watch-carousel/watch-1.png",
   "/images/watch-carousel/watch-2.png",
   "/images/watch-carousel/watch-3.png",
-  "/images/watch-carousel/watch-8.png",
-  "/images/watch-carousel/watch-1.png",
-  "/images/watch-carousel/watch-2.png",
-  "/images/watch-carousel/watch-3.png",
+  "/images/watch-carousel/watch-4.png",
+  "/images/watch-carousel/watch-5.png",
+  "/images/watch-carousel/watch-6.png",
+  "/images/watch-carousel/watch-7.png",
   "/images/watch-carousel/watch-8.png",
 ] as const;
+
+/**
+ * max(w,h) of the opaque subject bbox in each 1024² asset (see scripts — measured once).
+ * Reference = GMT-Master II two-tone (watch-5) so every watch matches that model’s size.
+ */
+const ORBIT_SUBJECT_MAX_PX: Record<(typeof ORBIT_IMAGES)[number], number> = {
+  "/images/watch-carousel/watch-1.png": 897,
+  "/images/watch-carousel/watch-2.png": 841,
+  "/images/watch-carousel/watch-3.png": 914,
+  "/images/watch-carousel/watch-4.png": 814,
+  "/images/watch-carousel/watch-5.png": 981,
+  "/images/watch-carousel/watch-6.png": 820,
+  "/images/watch-carousel/watch-7.png": 865,
+  "/images/watch-carousel/watch-8.png": 814,
+};
+
+const ORBIT_SUBJECT_SCALE_REF = ORBIT_SUBJECT_MAX_PX[
+  "/images/watch-carousel/watch-5.png"
+];
+
+const orbitSubjectScale = (src: (typeof ORBIT_IMAGES)[number]): number =>
+  ORBIT_SUBJECT_SCALE_REF / ORBIT_SUBJECT_MAX_PX[src];
 
 const STEP_DEG = 360 / ORBIT_IMAGES.length;
 
@@ -78,7 +99,7 @@ const WATCH_DETAILS: Record<string, WatchDetail> = {
     price: "From $12,000",
   },
   "/images/watch-carousel/watch-2.png": {
-    name: "Rolex Day-Date",
+    name: "Rolex Day-Date 40",
     description:
       "The emblematic prestige model in precious metal, crafted for distinction.",
     price: "From $38,500",
@@ -86,14 +107,38 @@ const WATCH_DETAILS: Record<string, WatchDetail> = {
   "/images/watch-carousel/watch-3.png": {
     name: "Rolex Datejust",
     description:
-      "Classic elegance with a date aperture and instantly recognisable aesthetic.",
+      "Classic elegance with a sunray dial and instantly recognisable aesthetic.",
     price: "From $8,200",
   },
-  "/images/watch-carousel/watch-8.png": {
-    name: "Rolex Oyster Perpetual",
+  "/images/watch-carousel/watch-4.png": {
+    name: "Rolex Day-Date 40",
     description:
-      "Pure Rolex DNA: waterproof case, perpetual movement, enduring style.",
-    price: "From $6,400",
+      "Roman numerals and a bright dial in yellow gold—boardroom presence, wrist-perfect balance.",
+    price: "From $38,500",
+  },
+  "/images/watch-carousel/watch-5.png": {
+    name: "Rolex GMT-Master II",
+    description:
+      "Two-tone steel and gold with a ceramic bezel—for travelers who want presence and utility.",
+    price: "From $17,500",
+  },
+  "/images/watch-carousel/watch-6.png": {
+    name: "Rolex Day-Date 40",
+    description:
+      "Deep blue sunray dial and diamond markers in cool precious metal.",
+    price: "From $41,000",
+  },
+  "/images/watch-carousel/watch-7.png": {
+    name: "Rolex GMT-Master II",
+    description:
+      "Steel sports icon with two-tone Cerachrom bezel and dual-time soul.",
+    price: "From $11,000",
+  },
+  "/images/watch-carousel/watch-8.png": {
+    name: "Rolex Day-Date 40",
+    description:
+      "Everose gold, diamond-set bezel, and white dial with Roman numerals—the Day-Date at its most formal.",
+    price: "From $42,000",
   },
 };
 
@@ -313,10 +358,11 @@ export const ScrollOrbitSection = () => {
 
       const w = stage.clientWidth;
       const cards = stage.querySelectorAll<HTMLElement>("[data-orbit-card]");
-      const halfCard =
-        cards[0] != null
-          ? cards[0].getBoundingClientRect().width / 2
-          : Math.min(w * 0.29, 158);
+      const first = cards[0];
+      let halfCard = Math.min(w * 0.29, 158);
+      if (first != null) {
+        halfCard = first.getBoundingClientRect().width / 2;
+      }
       const edge = Math.max(6, w * 0.012);
       const radiusXMax = Math.max(44, w / 2 - halfCard - edge);
       const radiusXIdeal = Math.min(w * RADIUS_X_RATIO, RADIUS_X_IDEAL_MAX_PX);
@@ -334,11 +380,10 @@ export const ScrollOrbitSection = () => {
         const x = Math.cos(angleRad) * radiusX;
         const y = Math.sin(angleRad) * radiusY;
         const depth = (Math.sin(angleRad) + 1) / 2;
-        const scale = 0.72 + 0.26 * depth ** 1.1;
         const opacity = 0.42 + 0.58 * depth;
         el.style.zIndex = String(10 + Math.round(depth * 45));
         el.style.opacity = String(opacity);
-        el.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+        el.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0)`;
       });
 
       if (snapIdx !== null) {
@@ -373,12 +418,19 @@ export const ScrollOrbitSection = () => {
       <div className="grid max-h-[inherit] md:grid-cols-[1.1fr_1fr]">
         <div className="relative flex min-h-[200px] items-center justify-center bg-gradient-to-b from-[#12121a] to-[#060608] px-8 py-10 md:min-h-0 md:py-14">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_70%,rgba(216,200,168,0.08),transparent_65%)]" />
-          <img
-            src={src}
-            alt=""
-            className="relative z-[1] max-h-[min(52vh,420px)] w-full max-w-[320px] object-contain drop-shadow-[0_32px_64px_rgba(0,0,0,0.55)] md:max-h-[min(60vh,480px)]"
-            draggable={false}
-          />
+          <div
+            className="relative z-[1] flex items-center justify-center origin-center"
+            style={{
+              transform: `scale(${orbitSubjectScale(src)})`,
+            }}
+          >
+            <img
+              src={src}
+              alt=""
+              className="max-h-[min(52vh,420px)] w-full max-w-[320px] object-contain drop-shadow-[0_32px_64px_rgba(0,0,0,0.55)] md:max-h-[min(60vh,480px)]"
+              draggable={false}
+            />
+          </div>
         </div>
         <div className="flex flex-col justify-center gap-6 border-t border-white/[0.08] p-8 md:border-l md:border-t-0 md:p-10 lg:p-12">
           <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-[#c9baa0]/85">
@@ -460,23 +512,29 @@ export const ScrollOrbitSection = () => {
                 data-orbit-card
                 className="absolute left-1/2 top-1/2 z-10 w-[min(58vmin,316px)] will-change-transform"
                 style={{
-                  transform:
-                    "translate(-50%, -50%) translate3d(0, 0, 0) scale(1)",
+                  transform: "translate(-50%, -50%) translate3d(0, 0, 0)",
                   opacity: 1,
                 }}
               >
                 <button
                   type="button"
-                  className="group w-full cursor-pointer border-0 bg-transparent p-0"
+                  className="group flex h-[min(50vmin,252px)] w-full cursor-pointer items-center justify-center border-0 bg-transparent p-0"
                   aria-label={`${detailForSrc(src).name} — open details`}
                   onClick={() => onCardClick(i)}
                 >
-                  <img
-                    src={src}
-                    alt={detailForSrc(src).name}
-                    className="h-auto w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                    draggable={false}
-                  />
+                  <div
+                    className="flex max-h-full max-w-full origin-center items-center justify-center will-change-transform"
+                    style={{
+                      transform: `scale(${orbitSubjectScale(src)})`,
+                    }}
+                  >
+                    <img
+                      src={src}
+                      alt={detailForSrc(src).name}
+                      className="max-h-full max-w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                      draggable={false}
+                    />
+                  </div>
                 </button>
               </div>
             ))}

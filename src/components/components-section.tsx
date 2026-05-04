@@ -152,57 +152,57 @@ export const ComponentsSection = () => {
               key={component.id}
               custom={slideDir(index)}
               variants={itemVariants}
+            >
+              <motion.button
+                type="button"
+                whileHover={{ y: -8 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                onClick={() => setActiveModal(component.id)}
+                className="group relative w-full overflow-hidden border border-white/10 bg-transparent text-left transition-[border-color,background-color] duration-500 hover:border-white/20"
               >
-                <motion.button
-                  type="button"
-                  whileHover={{ y: -8 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  onClick={() => setActiveModal(component.id)}
-                  className="group relative w-full overflow-hidden border border-white/10 bg-transparent text-left transition-[border-color,background-color] duration-500 hover:border-white/20"
-                >
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={component.imageUrl}
-                      alt={component.title}
-                      className="size-full object-cover transition-all duration-700 group-hover:scale-110"
-                    />
-                  </div>
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={component.imageUrl}
+                    alt={component.title}
+                    className="size-full object-cover transition-all duration-700 group-hover:scale-110"
+                  />
+                </div>
 
-                  <div className="space-y-4 p-8">
-                    <div>
-                      <span className="font-sans mb-2 block text-[9px] uppercase tracking-[0.2em] text-white/50">
-                        {component.subtitle}
-                      </span>
-                      <h3
-                        className="font-heading text-2xl text-white"
-                        style={{
-                          fontWeight: 600,
-                          lineHeight: 1.3,
-                          letterSpacing: "-0.01em",
-                        }}
-                      >
-                        {component.title}
-                      </h3>
-                    </div>
-
-                    <p
-                      className="font-sans text-sm leading-relaxed text-white/60"
+                <div className="space-y-4 p-8">
+                  <div>
+                    <span className="font-sans mb-2 block text-[9px] uppercase tracking-[0.2em] text-white/50">
+                      {component.subtitle}
+                    </span>
+                    <h3
+                      className="font-heading text-2xl text-white"
                       style={{
-                        fontWeight: 300,
-                        lineHeight: 1.6,
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                        letterSpacing: "-0.01em",
                       }}
                     >
-                      {component.shortDescription}
-                    </p>
-
-                    <div className="flex items-center gap-2 pt-2">
-                      <span className="font-sans text-xs uppercase tracking-wider text-white/40 transition-colors group-hover:text-white/60">
-                        Learn more
-                      </span>
-                      <div className="h-[1px] w-0 bg-white/40 transition-all duration-500 group-hover:w-6" />
-                    </div>
+                      {component.title}
+                    </h3>
                   </div>
-                </motion.button>
+
+                  <p
+                    className="font-sans text-sm leading-relaxed text-white/60"
+                    style={{
+                      fontWeight: 300,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {component.shortDescription}
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <span className="font-sans text-xs uppercase tracking-wider text-white/40 transition-colors group-hover:text-white/60">
+                      Learn more
+                    </span>
+                    <div className="h-[1px] w-0 bg-white/40 transition-all duration-500 group-hover:w-6" />
+                  </div>
+                </div>
+              </motion.button>
               </motion.div>
           ))}
         </motion.div>
