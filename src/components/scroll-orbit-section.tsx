@@ -55,13 +55,14 @@ const shortestAngleDelta = (deg: number) => {
   return d;
 };
 
-/** Таймлайн заголовка (scrub): скролл без текста → появление → y 0→500 + fade. */
+/** Таймлайн заголовка (scrub): скролл без текста → появление → y 0→500 + fade.
+ * Короткое end — к моменту «полной» орбиты слово уже скрыто. */
 const COLLECTION_TITLE_HIDDEN_Y = -96;
 const COLLECTION_TITLE_SCROLL_Y = 500;
-const COLLECTION_TITLE_SCROLL_TRIGGER_END = "+=1400";
+const COLLECTION_TITLE_SCROLL_TRIGGER_END = "+=680";
 /** Доли таймлайна: «только скролл» | появление | уход вниз. */
-const COLLECTION_TITLE_PHASE_SCROLL_ONLY = 0.2;
-const COLLECTION_TITLE_PHASE_ENTER = 0.13;
+const COLLECTION_TITLE_PHASE_SCROLL_ONLY = 0.14;
+const COLLECTION_TITLE_PHASE_ENTER = 0.1;
 
 type WatchDetail = {
   name: string;
