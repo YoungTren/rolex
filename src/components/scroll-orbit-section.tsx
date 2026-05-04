@@ -123,9 +123,9 @@ export const ScrollOrbitSection = () => {
 
       <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
         <div className="relative w-full">
-          <p className="mb-4 text-center font-sans text-[10px] uppercase tracking-[0.34em] text-[#c9baa0]/78 sm:mb-5">
+          <h2 className="mb-6 text-center font-heading text-4xl font-medium tracking-tight text-white md:mb-8 md:text-5xl lg:text-6xl">
             Collection
-          </p>
+          </h2>
 
           <div
             ref={stageRef}
@@ -167,10 +167,6 @@ export const ScrollOrbitSection = () => {
               </div>
             ))}
           </div>
-
-          <p className="mt-3 text-center font-sans text-xs font-light leading-relaxed text-white/32 sm:mt-4">
-            Scroll — cards follow the horizontal ring; each stays upright, facing you.
-          </p>
         </div>
       </div>
     </section>
