@@ -35,13 +35,13 @@ export const CraftsmanshipSection = () => {
           loop
           muted
           playsInline
-          className="absolute inset-0 size-full object-cover opacity-50"
+          className="absolute inset-0 size-full object-cover opacity-[0.88]"
         >
           <source src={MECHANISM_VIDEO_SRC} type="video/mp4" />
         </video>
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/[0.21] via-black/[0.15] to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/[0.18] via-transparent to-black/10" />
       </div>
 
       <motion.div
