@@ -1,15 +1,16 @@
 "use client";
 
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
 
 /**
  * Total section height drives scroll progress (track ≈ this minus viewport).
  * Keep only slightly above 100 so the orbit completes without a long empty tail.
  */
-const SECTION_HEIGHT_VH = 132;
+const SECTION_HEIGHT_VH = 172;
 
-const LERP = 0.095;
+const LERP = 0.068;
 
 /** Ellipse vertical radius as a fraction of horizontal (subtle arc for a wide layout). */
 const RADIUS_Y_RATIO = 0.33;
@@ -54,27 +55,13 @@ const shortestAngleDelta = (deg: number) => {
   return d;
 };
 
-/** Smooth 0→1 easing for Collection title enter (reversible when scrolling up). */
-const smoothstep01 = (t: number) => {
-  const u = Math.min(1, Math.max(0, t));
-  return u * u * (3 - 2 * u);
-};
-
-/** Ease-out for Collection title exit (matches scroll reverse symmetrically). */
-const easeOutCubic01 = (t: number) => {
-  const u = Math.min(1, Math.max(0, t));
-  return 1 - (1 - u) ** 3;
-};
-
-/**
- * Collection title phases on section scroll progress — same 0…1 as orbit `tick` (`scrolled / track`).
- * Reverses when scrolling up. Exit starts after a short hold once initial appearance is done.
- */
-const COLLECTION_TITLE_PHASE_ENTER_END = 0.09;
-const COLLECTION_TITLE_PHASE_EXIT_START = 0.24;
-const COLLECTION_TITLE_Y_START = -50;
-const COLLECTION_TITLE_Y_VISIBLE = 0;
-const COLLECTION_TITLE_Y_END = 440;
+/** Таймлайн заголовка (scrub): скролл без текста → появление → y 0→500 + fade. */
+const COLLECTION_TITLE_HIDDEN_Y = -96;
+const COLLECTION_TITLE_SCROLL_Y = 500;
+const COLLECTION_TITLE_SCROLL_TRIGGER_END = "+=1400";
+/** Доли таймлайна: «только скролл» | появление | уход вниз. */
+const COLLECTION_TITLE_PHASE_SCROLL_ONLY = 0.2;
+const COLLECTION_TITLE_PHASE_ENTER = 0.13;
 
 type WatchDetail = {
   name: string;
@@ -141,46 +128,75 @@ export const ScrollOrbitSection = () => {
     end?: ReturnType<typeof setTimeout>;
   }>({});
   const [detailFadedOut, setDetailFadedOut] = useState(false);
-
-  const { scrollYProgress: collectionTitleProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"],
-  });
-  const titleY = useTransform(collectionTitleProgress, (p) => {
-    if (p < COLLECTION_TITLE_PHASE_ENTER_END) {
-      const t = p / COLLECTION_TITLE_PHASE_ENTER_END;
-      const e = smoothstep01(t);
-      return (
-        COLLECTION_TITLE_Y_START +
-        (COLLECTION_TITLE_Y_VISIBLE - COLLECTION_TITLE_Y_START) * e
-      );
-    }
-    if (p < COLLECTION_TITLE_PHASE_EXIT_START) {
-      return COLLECTION_TITLE_Y_VISIBLE;
-    }
-    const u =
-      (p - COLLECTION_TITLE_PHASE_EXIT_START) /
-      (1 - COLLECTION_TITLE_PHASE_EXIT_START);
-    return (
-      COLLECTION_TITLE_Y_VISIBLE +
-      (COLLECTION_TITLE_Y_END - COLLECTION_TITLE_Y_VISIBLE) *
-        easeOutCubic01(u)
-    );
-  });
-  const titleOpacity = useTransform(collectionTitleProgress, (p) => {
-    if (p < COLLECTION_TITLE_PHASE_ENTER_END) {
-      return smoothstep01(p / COLLECTION_TITLE_PHASE_ENTER_END);
-    }
-    if (p < COLLECTION_TITLE_PHASE_EXIT_START) {
-      return 1;
-    }
-    const u =
-      (p - COLLECTION_TITLE_PHASE_EXIT_START) /
-      (1 - COLLECTION_TITLE_PHASE_EXIT_START);
-    return 1 - easeOutCubic01(u);
-  });
+  const collectionTitleRef = useRef<HTMLHeadingElement>(null);
+  const collectionStickyRef = useRef<HTMLDivElement>(null);
 
   setDetailIndexRef.current = setDetailIndex;
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    const title = collectionTitleRef.current;
+    const sticky = collectionStickyRef.current;
+    if (!section || !title) return;
+
+    gsap.registerPlugin(ScrollTrigger);
+    ScrollTrigger.getById("collection-title-y")?.kill();
+
+    const ctx = gsap.context(() => {
+      const trigger = sticky ?? section;
+      const phaseExit =
+        1 -
+        COLLECTION_TITLE_PHASE_SCROLL_ONLY -
+        COLLECTION_TITLE_PHASE_ENTER;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          id: "collection-title-y",
+          trigger,
+          start: "top bottom",
+          end: COLLECTION_TITLE_SCROLL_TRIGGER_END,
+          scrub: true,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      tl.fromTo(
+        title,
+        { y: COLLECTION_TITLE_HIDDEN_Y, opacity: 0 },
+        {
+          y: COLLECTION_TITLE_HIDDEN_Y,
+          opacity: 0,
+          duration: COLLECTION_TITLE_PHASE_SCROLL_ONLY,
+          ease: "none",
+        },
+      ).to(title, {
+        y: 0,
+        opacity: 1,
+        duration: COLLECTION_TITLE_PHASE_ENTER,
+        ease: "power2.out",
+      }).to(title, {
+        y: COLLECTION_TITLE_SCROLL_Y,
+        opacity: 0,
+        duration: phaseExit,
+        ease: "none",
+      });
+    }, section);
+
+    const onResize = () => {
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener("resize", onResize);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        ScrollTrigger.refresh();
+      });
+    });
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      ctx.revert();
+    };
+  }, []);
 
   const closeDetail = useCallback(() => {
     clearStoredTimeouts(detailSwitchTimersRef.current);
@@ -277,7 +293,10 @@ export const ScrollOrbitSection = () => {
       const rect = section.getBoundingClientRect();
       const track = section.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-rect.top, 0), Math.max(track, 0));
-      const progress = track > 0 ? scrolled / track : 0;
+      const progress = Math.min(
+        1,
+        Math.max(0, track > 0 ? scrolled / track : 0),
+      );
 
       const scrollDeg = progress * 360;
       const snapIdx = snapIndexRef.current;
@@ -398,7 +417,7 @@ export const ScrollOrbitSection = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative mt-[clamp(120px,10vw,200px)] mb-8 overflow-hidden bg-[#050507] pt-[clamp(32px,5vw,56px)] sm:mb-10"
+      className="relative mt-[clamp(60px,5vw,100px)] mb-8 overflow-hidden bg-[#050507] pt-[clamp(16px,2.5vw,28px)] sm:mb-10"
       style={{ minHeight: `${SECTION_HEIGHT_VH}vh` }}
     >
       <div
@@ -411,17 +430,17 @@ export const ScrollOrbitSection = () => {
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_42%_at_50%_28%,rgba(22,22,24,0.75),transparent_72%)]" />
 
-      <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
+      <div
+        ref={collectionStickyRef}
+        className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-3 pb-1.5 sm:pt-4 sm:pb-2"
+      >
         <div className="relative w-full">
-          <motion.h2
-            className="mb-[calc(1.5rem+1cm)] text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity] md:mb-[calc(2rem+1cm)] md:text-5xl lg:text-6xl"
-            style={{
-              y: titleY,
-              opacity: titleOpacity,
-            }}
+          <h2
+            ref={collectionTitleRef}
+            className="mb-[calc(0.75rem+0.5cm)] text-center font-heading text-7xl font-medium tracking-tight text-white will-change-[transform,opacity] md:mb-[calc(1rem+0.5cm)] md:text-8xl lg:text-[7.5rem]"
           >
             Collection
-          </motion.h2>
+          </h2>
 
           <div
             ref={stageRef}
