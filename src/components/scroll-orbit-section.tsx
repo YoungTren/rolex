@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "motion/react";
 
 /**
  * Total section height drives scroll progress (track ≈ this minus viewport).
@@ -89,6 +90,11 @@ const WATCH_DETAILS: Record<string, WatchDetail> = {
 const detailForSrc = (src: string): WatchDetail =>
   WATCH_DETAILS[src] ?? WATCH_DETAILS["/images/watch-carousel/watch-1.png"];
 
+/** Resting offset (~2cm up) + extra slide; both keyframes shifted down by ~2cm. */
+const TITLE_REST_Y = -75.6;
+const TITLE_ENTER_EXTRA = -80;
+const TITLE_SHIFT_LOWER_CM = 75.6;
+
 export const ScrollOrbitSection = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -99,6 +105,30 @@ export const ScrollOrbitSection = () => {
 
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress: collectionTitleProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start 0.9", "start 0.48"],
+  });
+  const titleY = useTransform(
+    collectionTitleProgress,
+    [0, 1],
+    [
+      TITLE_REST_Y + TITLE_ENTER_EXTRA + TITLE_SHIFT_LOWER_CM,
+      TITLE_REST_Y + TITLE_SHIFT_LOWER_CM,
+    ],
+  );
+  const titleOpacity = useTransform(
+    collectionTitleProgress,
+    [0, 0.45, 1],
+    [0, 0.88, 1],
+  );
+  const titleBlurPx = useTransform(
+    collectionTitleProgress,
+    [0, 0.5, 1],
+    [18, 5, 0],
+  );
+  const titleFilter = useTransform(titleBlurPx, (b) => `blur(${b}px)`);
 
   setDetailIndexRef.current = setDetailIndex;
 
@@ -225,9 +255,16 @@ export const ScrollOrbitSection = () => {
 
       <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
         <div className="relative w-full">
-          <h2 className="mb-6 text-center font-heading text-4xl font-medium tracking-tight text-white md:mb-8 md:text-5xl lg:text-6xl">
+          <motion.h2
+            className="mb-6 text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity,filter] md:mb-8 md:text-5xl lg:text-6xl"
+            style={{
+              y: titleY,
+              opacity: titleOpacity,
+              filter: titleFilter,
+            }}
+          >
             Collection
-          </h2>
+          </motion.h2>
 
           <div
             ref={stageRef}
