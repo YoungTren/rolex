@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Total section height drives scroll progress (track ≈ this minus viewport).
@@ -35,6 +35,11 @@ const ORBIT_IMAGES = [
 
 const STEP_DEG = 360 / ORBIT_IMAGES.length;
 
+/** Front of orbit: max depth (sin → 1). */
+const FRONT_ANGLE_DEG = 90;
+
+const ALIGN_EPS_DEG = 4;
+
 const lerpAngle = (from: number, to: number, t: number) => {
   let d = to - from;
   while (d > 180) d -= 360;
@@ -42,10 +47,80 @@ const lerpAngle = (from: number, to: number, t: number) => {
   return from + d * t;
 };
 
+const shortestAngleDelta = (deg: number) => {
+  let d = ((deg % 360) + 360) % 360;
+  if (d > 180) d -= 360;
+  return d;
+};
+
+type WatchDetail = {
+  name: string;
+  description: string;
+  price: string;
+};
+
+const WATCH_DETAILS: Record<string, WatchDetail> = {
+  "/images/watch-carousel/watch-1.png": {
+    name: "Rolex Submariner",
+    description:
+      "Precision, durability, and timeless luxury in one iconic design.",
+    price: "From $12,000",
+  },
+  "/images/watch-carousel/watch-2.png": {
+    name: "Rolex Day-Date",
+    description:
+      "The emblematic prestige model in precious metal, crafted for distinction.",
+    price: "From $38,500",
+  },
+  "/images/watch-carousel/watch-3.png": {
+    name: "Rolex Datejust",
+    description:
+      "Classic elegance with a date aperture and instantly recognisable aesthetic.",
+    price: "From $8,200",
+  },
+  "/images/watch-carousel/watch-8.png": {
+    name: "Rolex Oyster Perpetual",
+    description:
+      "Pure Rolex DNA: waterproof case, perpetual movement, enduring style.",
+    price: "From $6,400",
+  },
+};
+
+const detailForSrc = (src: string): WatchDetail =>
+  WATCH_DETAILS[src] ?? WATCH_DETAILS["/images/watch-carousel/watch-1.png"];
+
 export const ScrollOrbitSection = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const ellipseRef = useRef<HTMLDivElement>(null);
+  const snapIndexRef = useRef<number | null>(null);
+  const setDetailIndexRef = useRef<(index: number | null) => void>(() => {});
+  const detailOpenedForSnapRef = useRef<number | null>(null);
+
+  const [detailIndex, setDetailIndex] = useState<number | null>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+
+  setDetailIndexRef.current = setDetailIndex;
+
+  const closeDetail = useCallback(() => {
+    snapIndexRef.current = null;
+    detailOpenedForSnapRef.current = null;
+    setDetailIndex(null);
+  }, []);
+
+  const onCardClick = useCallback((index: number) => {
+    snapIndexRef.current = index;
+    detailOpenedForSnapRef.current = null;
+    setDetailIndex(null);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeDetail();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [closeDetail]);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -54,6 +129,7 @@ export const ScrollOrbitSection = () => {
     if (!section || !stage) return;
 
     let animatedDeg = 0;
+    let extraDeg = 0;
     let rafId = 0;
 
     const tick = () => {
@@ -62,8 +138,17 @@ export const ScrollOrbitSection = () => {
       const scrolled = Math.min(Math.max(-rect.top, 0), Math.max(track, 0));
       const progress = track > 0 ? scrolled / track : 0;
 
-      const targetDeg = progress * 360;
-      animatedDeg = lerpAngle(animatedDeg, targetDeg, LERP);
+      const scrollDeg = progress * 360;
+      const snapIdx = snapIndexRef.current;
+      const extraTarget =
+        snapIdx === null
+          ? 0
+          : shortestAngleDelta(
+              FRONT_ANGLE_DEG - STEP_DEG * snapIdx - scrollDeg,
+            );
+      extraDeg = lerpAngle(extraDeg, extraTarget, LERP);
+      const targetTotal = scrollDeg + extraDeg;
+      animatedDeg = lerpAngle(animatedDeg, targetTotal, LERP);
 
       const w = stage.clientWidth;
       const cards = stage.querySelectorAll<HTMLElement>("[data-orbit-card]");
@@ -95,6 +180,18 @@ export const ScrollOrbitSection = () => {
         el.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
       });
 
+      if (snapIdx !== null) {
+        const ang = STEP_DEG * snapIdx + animatedDeg;
+        const delta = shortestAngleDelta(ang - FRONT_ANGLE_DEG);
+        if (
+          Math.abs(delta) < ALIGN_EPS_DEG &&
+          detailOpenedForSnapRef.current !== snapIdx
+        ) {
+          detailOpenedForSnapRef.current = snapIdx;
+          setDetailIndexRef.current(snapIdx);
+        }
+      }
+
       rafId = requestAnimationFrame(tick);
     };
 
@@ -104,6 +201,11 @@ export const ScrollOrbitSection = () => {
       cancelAnimationFrame(rafId);
     };
   }, []);
+
+  const detail =
+    detailIndex !== null ? detailForSrc(ORBIT_IMAGES[detailIndex]) : null;
+  const detailSrc =
+    detailIndex !== null ? ORBIT_IMAGES[detailIndex] : null;
 
   return (
     <section
@@ -134,7 +236,7 @@ export const ScrollOrbitSection = () => {
             <div
               ref={ellipseRef}
               aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-[#d8c8a8]/[0.14] shadow-[inset_0_0_40px_rgba(216,200,168,0.05),0_0_70px_rgba(216,200,168,0.05)]"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 rounded-[50%] opacity-0 shadow-none"
               style={{ width: 640, height: 224 }}
             />
 
@@ -144,20 +246,22 @@ export const ScrollOrbitSection = () => {
                 data-orbit-card
                 className="absolute left-1/2 top-1/2 z-10 w-[min(58vmin,316px)] will-change-transform"
                 style={{
-                  transform: "translate(-50%, -50%) translate3d(0, 0, 0) scale(1)",
+                  transform:
+                    "translate(-50%, -50%) translate3d(0, 0, 0) scale(1)",
                   opacity: 1,
                 }}
               >
                 <button
                   type="button"
                   className="group w-full cursor-pointer border-0 bg-transparent p-0"
-                  aria-label={`Piece ${i + 1}`}
+                  aria-label={`${detailForSrc(src).name} — open details`}
+                  onClick={() => onCardClick(i)}
                 >
                   <div className="rounded-2xl bg-gradient-to-b from-white/[0.09] to-white/[0.02] p-[22px] ring-1 ring-white/[0.11] shadow-[0_44px_88px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)_inset] transition-[transform,box-shadow] duration-500 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_60px_120px_rgba(0,0,0,0.55),0_0_56px_rgba(216,200,168,0.1)]">
                     <div className="overflow-hidden rounded-xl bg-[#0a0a0c]/90 ring-1 ring-white/[0.05]">
                       <img
                         src={src}
-                        alt={`Timepiece ${i + 1}`}
+                        alt={detailForSrc(src).name}
                         className="h-auto w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                         draggable={false}
                       />
@@ -167,6 +271,71 @@ export const ScrollOrbitSection = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div
+        className={`fixed inset-0 z-[80] flex items-center justify-center p-4 transition-[opacity,visibility] duration-500 ease-out md:p-8 ${
+          detailIndex !== null && detail
+            ? "visible opacity-100"
+            : "invisible opacity-0 pointer-events-none"
+        }`}
+        aria-hidden={detailIndex === null}
+      >
+        <button
+          type="button"
+          aria-label="Close details"
+          className="absolute inset-0 bg-black/75 backdrop-blur-[2px] transition-opacity duration-500"
+          onClick={closeDetail}
+        />
+        <div
+          ref={detailPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="watch-detail-title"
+          className={`relative z-[1] max-h-[min(92vh,880px)] w-full max-w-5xl overflow-hidden rounded-3xl border border-white/[0.12] bg-[#08080a]/85 shadow-[0_48px_120px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl transition-[opacity,transform,scale] duration-500 ease-out ${
+            detailIndex !== null && detail
+              ? "translate-y-0 scale-100 opacity-100"
+              : "translate-y-4 scale-[0.98] opacity-0"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {detail && detailSrc ? (
+            <div className="grid max-h-[inherit] md:grid-cols-[1.1fr_1fr]">
+              <div className="relative flex min-h-[200px] items-center justify-center bg-gradient-to-b from-[#12121a] to-[#060608] px-8 py-10 md:min-h-0 md:py-14">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_70%,rgba(216,200,168,0.08),transparent_65%)]" />
+                <img
+                  src={detailSrc}
+                  alt=""
+                  className="relative z-[1] max-h-[min(52vh,420px)] w-full max-w-[320px] object-contain drop-shadow-[0_32px_64px_rgba(0,0,0,0.55)] md:max-h-[min(60vh,480px)]"
+                  draggable={false}
+                />
+              </div>
+              <div className="flex flex-col justify-center gap-6 border-t border-white/[0.08] p-8 md:border-l md:border-t-0 md:p-10 lg:p-12">
+                <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-[#c9baa0]/85">
+                  Collection
+                </p>
+                <h3
+                  id="watch-detail-title"
+                  className="font-heading text-3xl font-medium tracking-tight text-white md:text-4xl lg:text-[2.6rem]"
+                >
+                  {detail.name}
+                </h3>
+                <p className="font-sans text-base font-light leading-relaxed text-white/72 md:text-lg">
+                  {detail.description}
+                </p>
+                <p className="font-sans text-sm uppercase tracking-[0.12em] text-[#c9baa0]/90">
+                  {detail.price}
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 w-fit rounded-full border border-white/[0.2] bg-white/[0.07] px-8 py-3.5 font-sans text-xs uppercase tracking-[0.22em] text-white/95 shadow-[0_20px_48px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-[background-color,box-shadow] duration-300 hover:border-white/[0.28] hover:bg-white/[0.11]"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
