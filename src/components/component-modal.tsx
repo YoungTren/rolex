@@ -31,7 +31,7 @@ export const ComponentModal = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -42,7 +42,7 @@ export const ComponentModal = ({
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-4xl -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="relative overflow-hidden border border-white/10 bg-black/95 backdrop-blur-xl">
+            <div className="relative overflow-hidden border border-white/10 bg-black">
               <button
                 type="button"
                 onClick={onClose}
@@ -53,13 +53,12 @@ export const ComponentModal = ({
               </button>
 
               <div className="grid grid-cols-1 md:grid-cols-2">
-                <div className="relative h-64 overflow-hidden bg-gradient-to-br from-neutral-900 to-black md:h-auto">
+                <div className="relative h-64 overflow-hidden bg-black md:h-auto">
                   <img
                     src={imageUrl}
                     alt={title}
-                    className="size-full object-cover opacity-70"
+                    className="size-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
 
                 <div className="p-8 md:p-12">

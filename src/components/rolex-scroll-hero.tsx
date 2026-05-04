@@ -126,17 +126,9 @@ export const RolexScrollHero = () => {
         aria-hidden
       />
 
-      <div
-        className="pointer-events-none absolute inset-0 z-[1]"
-        style={{
-          background:
-            "linear-gradient(105deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.28) 100%), linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 45%, rgba(0,0,0,0.35) 100%)",
-        }}
-      />
-
       <div className="relative z-10 flex min-h-screen w-full flex-col px-8 md:px-16 lg:px-24">
         <div className="absolute left-8 top-8 md:left-16 md:top-12">
-          <div className="inline-flex items-center gap-2 border border-white/20 bg-white/5 px-4 py-2 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 border border-white/20 px-4 py-2">
             <span className="size-1.5 rounded-full bg-white/90" />
             <span className="font-sans text-[10px] uppercase tracking-[0.22em] text-white/90">
               Oyster Perpetual

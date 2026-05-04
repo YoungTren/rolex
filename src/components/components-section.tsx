@@ -159,15 +159,14 @@ export const ComponentsSection = () => {
                   whileHover={{ y: -8 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   onClick={() => setActiveModal(component.id)}
-                  className="group relative w-full overflow-hidden border border-white/10 bg-gradient-to-br from-white/5 to-transparent text-left transition-[border-color,background-color] duration-500 hover:border-white/20 hover:bg-white/10"
+                  className="group relative w-full overflow-hidden border border-white/10 bg-transparent text-left transition-[border-color,background-color] duration-500 hover:border-white/20"
                 >
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={component.imageUrl}
                       alt={component.title}
-                      className="size-full object-cover opacity-40 transition-all duration-700 group-hover:scale-110 group-hover:opacity-60"
+                      className="size-full object-cover transition-all duration-700 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
 
                     <div className="absolute left-6 top-6">
                       <span
@@ -214,7 +213,6 @@ export const ComponentsSection = () => {
                     </div>
                   </div>
 
-                  <div className="absolute inset-0 -translate-y-full bg-gradient-to-b from-white/5 to-transparent opacity-0 transition-all duration-700 group-hover:translate-y-0 group-hover:opacity-100" />
                 </motion.button>
               </motion.div>
             );
