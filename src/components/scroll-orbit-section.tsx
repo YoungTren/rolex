@@ -256,7 +256,7 @@ export const ScrollOrbitSection = () => {
       <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
         <div className="relative w-full">
           <motion.h2
-            className="mb-6 text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity,filter] md:mb-8 md:text-5xl lg:text-6xl"
+            className="mb-[calc(1.5rem+1cm)] text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity,filter] md:mb-[calc(2rem+1cm)] md:text-5xl lg:text-6xl"
             style={{
               y: titleY,
               opacity: titleOpacity,
@@ -337,6 +337,14 @@ export const ScrollOrbitSection = () => {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            type="button"
+            aria-label="Закрыть"
+            className="absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-white/[0.18] bg-black/50 text-xl leading-none text-white/90 backdrop-blur-sm transition-colors duration-300 hover:border-white/[0.35] hover:bg-white/[0.1] md:right-4 md:top-4"
+            onClick={closeDetail}
+          >
+            ×
+          </button>
           {detail && detailSrc ? (
             <div className="grid max-h-[inherit] md:grid-cols-[1.1fr_1fr]">
               <div className="relative flex min-h-[200px] items-center justify-center bg-gradient-to-b from-[#12121a] to-[#060608] px-8 py-10 md:min-h-0 md:py-14">
