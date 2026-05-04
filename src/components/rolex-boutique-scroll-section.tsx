@@ -165,6 +165,11 @@ export const RolexBoutiqueScrollSection = () => {
       />
 
       <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[clamp(150px,22vh,250px)] bg-gradient-to-t from-black via-black/[0.72] via-[40%] to-transparent"
+      />
+
+      <div
         ref={titleWrapRef}
         className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 md:px-12"
       >

@@ -10,8 +10,8 @@ export default function Home() {
       <RolexScrollHero />
       <ComponentsSection />
       <CraftsmanshipSection />
-      <RolexBoutiqueScrollSection />
       <ScrollOrbitSection />
+      <RolexBoutiqueScrollSection />
     </main>
   );
 }

@@ -2,18 +2,25 @@
 
 import { useEffect, useRef } from "react";
 
-const SECTION_HEIGHT_VH = 250;
+/**
+ * Total section height drives scroll progress (track ≈ this minus viewport).
+ * Keep only slightly above 100 so the orbit completes without a long empty tail.
+ */
+const SECTION_HEIGHT_VH = 132;
 
 const LERP = 0.095;
 
-/** Ellipse vertical radius as a fraction of horizontal (simulates a flat ring on the floor). */
-const RADIUS_Y_RATIO = 0.35;
+/** Ellipse vertical radius as a fraction of horizontal (subtle arc for a wide layout). */
+const RADIUS_Y_RATIO = 0.33;
 
-/** Ideal horizontal semi-axis: fraction of stage width (raised for clearer gaps). */
-const RADIUS_X_RATIO = 0.52;
+/**
+ * Target orbit semi-axis as fraction of stage width — kept high so
+ * `min(radiusXIdeal, radiusXMax)` === `radiusXMax` (full width within margins).
+ */
+const RADIUS_X_RATIO = 0.98;
 
-/** Upper bound for ideal radiusX (px) on very wide viewports (~2× prior cap for 2× cards). */
-const RADIUS_X_IDEAL_MAX_PX = 760;
+/** Ceiling only; real radius is clamped by stage width minus card half-width. */
+const RADIUS_X_IDEAL_MAX_PX = 8000;
 
 const ORBIT_IMAGES = [
   "/images/watch-carousel/watch-1.png",
@@ -64,7 +71,7 @@ export const ScrollOrbitSection = () => {
         cards[0] != null
           ? cards[0].getBoundingClientRect().width / 2
           : Math.min(w * 0.29, 158);
-      const edge = Math.max(10, w * 0.018);
+      const edge = Math.max(6, w * 0.012);
       const radiusXMax = Math.max(44, w / 2 - halfCard - edge);
       const radiusXIdeal = Math.min(w * RADIUS_X_RATIO, RADIUS_X_IDEAL_MAX_PX);
       const radiusX = Math.min(radiusXIdeal, radiusXMax);
@@ -81,7 +88,7 @@ export const ScrollOrbitSection = () => {
         const x = Math.cos(angleRad) * radiusX;
         const y = Math.sin(angleRad) * radiusY;
         const depth = (Math.sin(angleRad) + 1) / 2;
-        const scale = 0.7 + 0.3 * depth ** 1.1;
+        const scale = 0.72 + 0.26 * depth ** 1.1;
         const opacity = 0.42 + 0.58 * depth;
         el.style.zIndex = String(10 + Math.round(depth * 45));
         el.style.opacity = String(opacity);
@@ -101,24 +108,28 @@ export const ScrollOrbitSection = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-[#050507]"
+      className="relative mt-[clamp(120px,10vw,200px)] mb-8 overflow-hidden bg-[#050507] pt-[clamp(32px,5vw,56px)] sm:mb-10"
       style={{ minHeight: `${SECTION_HEIGHT_VH}vh` }}
     >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[min(220px,28vh)] bg-gradient-to-b from-black via-[#050507]/55 to-transparent"
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_50%_at_50%_92%,rgba(48,42,34,0.45),transparent_58%)]"
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_42%_at_50%_28%,rgba(22,22,24,0.75),transparent_72%)]" />
 
-      <div className="sticky top-0 flex h-screen w-full items-center justify-center px-4 py-12">
-        <div className="relative w-full max-w-7xl">
-          <p className="mb-6 text-center font-sans text-[10px] uppercase tracking-[0.34em] text-[#c9baa0]/78">
+      <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
+        <div className="relative w-full">
+          <p className="mb-4 text-center font-sans text-[10px] uppercase tracking-[0.34em] text-[#c9baa0]/78 sm:mb-5">
             Collection
           </p>
 
           <div
             ref={stageRef}
-            className="relative mx-auto h-[min(88vmin,860px)] w-full max-w-[min(96vmin,1280px)]"
+            className="relative mx-auto h-[min(86vmin,860px)] w-full"
           >
             <div
               ref={ellipseRef}
@@ -157,7 +168,7 @@ export const ScrollOrbitSection = () => {
             ))}
           </div>
 
-          <p className="mt-6 text-center font-sans text-xs font-light leading-relaxed text-white/32">
+          <p className="mt-3 text-center font-sans text-xs font-light leading-relaxed text-white/32 sm:mt-4">
             Scroll — cards follow the horizontal ring; each stays upright, facing you.
           </p>
         </div>
