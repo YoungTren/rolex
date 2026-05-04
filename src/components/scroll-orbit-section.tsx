@@ -294,16 +294,12 @@ export const ScrollOrbitSection = () => {
                   aria-label={`${detailForSrc(src).name} — open details`}
                   onClick={() => onCardClick(i)}
                 >
-                  <div className="rounded-2xl bg-gradient-to-b from-white/[0.09] to-white/[0.02] p-[22px] ring-1 ring-white/[0.11] shadow-[0_44px_88px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)_inset] transition-[transform,box-shadow] duration-500 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_60px_120px_rgba(0,0,0,0.55),0_0_56px_rgba(216,200,168,0.1)]">
-                    <div className="overflow-hidden rounded-xl bg-[#0a0a0c]/90 ring-1 ring-white/[0.05]">
-                      <img
-                        src={src}
-                        alt={detailForSrc(src).name}
-                        className="h-auto w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                        draggable={false}
-                      />
-                    </div>
-                  </div>
+                  <img
+                    src={src}
+                    alt={detailForSrc(src).name}
+                    className="h-auto w-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                    draggable={false}
+                  />
                 </button>
               </div>
             ))}
