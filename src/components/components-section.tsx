@@ -1,9 +1,55 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useInView } from "motion/react";
 
 import { ComponentModal } from "@/components/component-modal";
+
+const cardSlideTransition = {
+  duration: 1.9,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
+
+type SlideDir = "left" | "right" | "bottom";
+
+const containerVariants = {
+  hidden: {
+    transition: {
+      staggerChildren: 0.2,
+      staggerDirection: -1,
+    },
+  },
+  visible: {
+    transition: {
+      staggerChildren: 0.28,
+      staggerDirection: 1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: (dir: SlideDir) => ({
+    opacity: 0,
+    x: dir === "left" ? -88 : dir === "right" ? 88 : 0,
+    y: dir === "bottom" ? 96 : 0,
+    transition: cardSlideTransition,
+  }),
+  visible: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    transition: cardSlideTransition,
+  },
+};
+
+const slideDir = (index: number): SlideDir =>
+  index === 0 ? "left" : index === 2 ? "right" : "bottom";
+
+const inViewOptions = {
+  once: false,
+  amount: 0.22,
+  margin: "0px 0px -10% 0px",
+} as const;
 
 type WatchComponent = {
   id: string;
@@ -30,8 +76,7 @@ const components: WatchComponent[] = [
       { label: "Frequency", value: "28,800 vph (4 Hz)" },
       { label: "Functions", value: "Hours, minutes, seconds, date" },
     ],
-    imageUrl:
-      "https://images.unsplash.com/photo-1712890933285-7a4371686947?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHx3YXRjaCUyMG1lY2hhbmlzbSUyMGdlYXJzJTIwaW50ZXJuYWwlMjBtb3ZlbWVudCUyMG1hY3JvJTIwZGFya3xlbnwxfHx8fDE3Nzc4MjYzMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    imageUrl: "/images/components-card-1-movement.png",
   },
   {
     id: "case",
@@ -47,8 +92,7 @@ const components: WatchComponent[] = [
       { label: "Water Resistance", value: "300 meters (1000 feet)" },
       { label: "Finish", value: "Polished & brushed" },
     ],
-    imageUrl:
-      "https://images.unsplash.com/photo-1540967247317-16b0c1d1de63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBkYXJrJTIwd2F0Y2glMjBtZWNoYW5pY2FsJTIwZGV0YWlscyUyMGhpZ2glMjBjb250cmFzdHxlbnwxfHx8fDE3Nzc4MDkyMjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    imageUrl: "/images/components-card-2-case.png",
   },
   {
     id: "crystal",
@@ -64,49 +108,18 @@ const components: WatchComponent[] = [
       { label: "Clarity", value: "99.9% light transmission" },
       { label: "Profile", value: "Domed with Cyclops lens" },
     ],
-    imageUrl:
-      "https://images.unsplash.com/photo-1639160740064-44d85d5be1ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxsdXh1cnklMjBkYXJrJTIwd2F0Y2glMjBtZWNoYW5pY2FsJTIwZGV0YWlscyUyMGhpZ2glMjBjb250cmFzdHxlbnwxfHx8fDE3Nzc4MDkyMjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    imageUrl: "/images/components-card-3-crystal.png",
   },
 ];
 
 export const ComponentsSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-
-  /** Stay readable after long pinned sections (hero): avoid 0 opacity at scroll extremes. */
-  const cardOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.06, 0.12, 0.88, 0.94, 1],
-    [0.55, 0.85, 1, 1, 0.85, 0.55],
-  );
-
-  const leftX = useTransform(
-    scrollYProgress,
-    [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [-72, -48, -28, 0, 0, -28, -48, -72],
-  );
-  const rightX = useTransform(
-    scrollYProgress,
-    [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [72, 48, 28, 0, 0, 28, 48, 72],
-  );
-  const centerY = useTransform(
-    scrollYProgress,
-    [0, 0.1, 0.14, 0.28, 0.72, 0.86, 0.9, 1],
-    [72, 48, 24, 0, 0, 24, 48, 72],
-  );
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gridInView = useInView(gridRef, inViewOptions);
 
   return (
     <>
-      <div
-        ref={sectionRef}
-        className="relative min-h-screen overflow-x-hidden bg-black px-8 py-32 md:px-16 md:py-40 lg:px-24 lg:py-48"
-      >
+      <div className="relative min-h-screen overflow-x-hidden bg-black px-8 py-32 md:px-16 md:py-40 lg:px-24 lg:py-48">
         <div className="mx-auto mb-16 max-w-7xl">
           <div className="mb-6 flex items-center gap-4">
             <div className="h-[1px] w-12 bg-white/30" />
@@ -127,20 +140,18 @@ export const ComponentsSection = () => {
           </h2>
         </div>
 
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-3">
-          {components.map((component, index) => {
-            const isLeft = index === 0;
-            const isCenter = index === 1;
-            const isRight = index === 2;
-
-            return (
-              <motion.div
-                key={component.id}
-                style={{
-                  x: isLeft ? leftX : isRight ? rightX : 0,
-                  y: isCenter ? centerY : 0,
-                  opacity: cardOpacity,
-                }}
+        <motion.div
+          ref={gridRef}
+          className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate={gridInView ? "visible" : "hidden"}
+        >
+          {components.map((component, index) => (
+            <motion.div
+              key={component.id}
+              custom={slideDir(index)}
+              variants={itemVariants}
               >
                 <motion.button
                   type="button"
@@ -155,15 +166,6 @@ export const ComponentsSection = () => {
                       alt={component.title}
                       className="size-full object-cover transition-all duration-700 group-hover:scale-110"
                     />
-
-                    <div className="absolute left-6 top-6">
-                      <span
-                        className="font-heading text-5xl text-white/20 transition-colors duration-500 group-hover:text-white/30"
-                        style={{ fontWeight: 300 }}
-                      >
-                        0{index + 1}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="space-y-4 p-8">
@@ -200,12 +202,10 @@ export const ComponentsSection = () => {
                       <div className="h-[1px] w-0 bg-white/40 transition-all duration-500 group-hover:w-6" />
                     </div>
                   </div>
-
                 </motion.button>
               </motion.div>
-            );
-          })}
-        </div>
+          ))}
+        </motion.div>
       </div>
 
       {components.map((component) => (
