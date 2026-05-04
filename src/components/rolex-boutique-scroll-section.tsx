@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const VIDEO_SRC = "/videos/boutique-porsche.mp4";
 
-const PIN_SCROLL_END = "+=4000";
-
-const SEEK_THRESHOLD_SEC = 0.04;
-
-const SCRUB_SEC = 0.5;
+const TEXT_REVEAL_MS = 3200;
 
 const TITLE_LINE = "a wonderful time to live";
 
@@ -29,26 +23,13 @@ const charReveal = (progress: number, charIndex: number, n: number) => {
 };
 
 export const RolexBoutiqueScrollSection = () => {
-  const sectionRef = useRef<HTMLElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const titleWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const section = sectionRef.current;
-    const video = videoRef.current;
     const titleWrap = titleWrapRef.current;
-    if (!section || !video) return;
-
-    video.pause();
-    video.currentTime = 0;
-    video.removeAttribute("autoplay");
-
-    gsap.registerPlugin(ScrollTrigger);
-
-    let progressTween: gsap.core.Tween | null = null;
+    if (!titleWrap) return;
 
     const syncTitle = (progress: number) => {
-      if (!titleWrap) return;
       const els = titleWrap.querySelectorAll<HTMLElement>("[data-char]");
       const n = els.length;
       els.forEach((el, i) => {
@@ -58,97 +39,24 @@ export const RolexBoutiqueScrollSection = () => {
       });
     };
 
-    const linkScrollToVideo = () => {
-      if (progressTween) return;
-
-      const dur = video.duration;
-      if (!Number.isFinite(dur) || dur <= 0) return;
-      if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-
-      const progressState = { progress: 0 };
-
-      progressTween = gsap.to(progressState, {
-        progress: 1,
-        ease: "none",
-        immediateRender: false,
-        scrollTrigger: {
-          trigger: section,
-          start: "top top",
-          end: PIN_SCROLL_END,
-          pin: true,
-          scrub: SCRUB_SEC,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            const p = self.progress;
-            const d = video.duration;
-            if (Number.isFinite(d) && d > 0 && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-              const targetTime = p * d;
-              try {
-                if (Math.abs(video.currentTime - targetTime) > SEEK_THRESHOLD_SEC) {
-                  video.currentTime = targetTime;
-                }
-              } catch {
-                /* seek not ready */
-              }
-            }
-            syncTitle(p);
-          },
-        },
-      });
-    };
-
-    const onLoadedMetadata = () => {
-      linkScrollToVideo();
-    };
-
-    video.addEventListener("loadedmetadata", onLoadedMetadata);
-
-    if (
-      video.readyState >= HTMLMediaElement.HAVE_METADATA &&
-      Number.isFinite(video.duration) &&
-      video.duration > 0
-    ) {
-      linkScrollToVideo();
-    }
-
     syncTitle(0);
 
-    let innerRaf = 0;
-    const outerRaf = requestAnimationFrame(() => {
-      innerRaf = requestAnimationFrame(() => ScrollTrigger.refresh());
-    });
+    const start = performance.now();
+    let rafId = 0;
 
-    const onResize = () => {
-      ScrollTrigger.refresh();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / TEXT_REVEAL_MS);
+      syncTitle(t);
+      if (t < 1) rafId = requestAnimationFrame(tick);
     };
-    window.addEventListener("resize", onResize);
 
-    return () => {
-      cancelAnimationFrame(outerRaf);
-      cancelAnimationFrame(innerRaf);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      window.removeEventListener("resize", onResize);
-
-      progressTween?.scrollTrigger?.kill();
-      progressTween?.kill();
-      progressTween = null;
-
-      ScrollTrigger.getAll().forEach((st) => {
-        if (st.trigger === section) st.kill();
-      });
-
-      video.pause();
-    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative h-screen w-full max-w-none overflow-hidden bg-black"
-    >
+    <section className="relative h-screen w-full max-w-none overflow-hidden bg-black">
       <video
-        ref={videoRef}
         src={VIDEO_SRC}
         className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
         style={{
@@ -159,6 +67,8 @@ export const RolexBoutiqueScrollSection = () => {
           objectFit: "cover",
         }}
         preload="auto"
+        autoPlay
+        loop
         playsInline
         muted
         aria-hidden

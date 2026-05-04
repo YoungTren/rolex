@@ -54,6 +54,28 @@ const shortestAngleDelta = (deg: number) => {
   return d;
 };
 
+/** Smooth 0→1 easing for Collection title enter (reversible when scrolling up). */
+const smoothstep01 = (t: number) => {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+};
+
+/** Ease-out for Collection title exit (matches scroll reverse symmetrically). */
+const easeOutCubic01 = (t: number) => {
+  const u = Math.min(1, Math.max(0, t));
+  return 1 - (1 - u) ** 3;
+};
+
+/**
+ * Collection title phases on section scroll progress — same 0…1 as orbit `tick` (`scrolled / track`).
+ * Reverses when scrolling up. Exit starts after a short hold once initial appearance is done.
+ */
+const COLLECTION_TITLE_PHASE_ENTER_END = 0.09;
+const COLLECTION_TITLE_PHASE_EXIT_START = 0.24;
+const COLLECTION_TITLE_Y_START = -50;
+const COLLECTION_TITLE_Y_VISIBLE = 0;
+const COLLECTION_TITLE_Y_END = 440;
+
 type WatchDetail = {
   name: string;
   description: string;
@@ -90,10 +112,18 @@ const WATCH_DETAILS: Record<string, WatchDetail> = {
 const detailForSrc = (src: string): WatchDetail =>
   WATCH_DETAILS[src] ?? WATCH_DETAILS["/images/watch-carousel/watch-1.png"];
 
-/** Resting offset (~2cm up) + extra slide; both keyframes shifted down by ~2cm. */
-const TITLE_REST_Y = -75.6;
-const TITLE_ENTER_EXTRA = -80;
-const TITLE_SHIFT_LOWER_CM = 75.6;
+const DETAIL_SWITCH_HALF_MS = 170;
+const DETAIL_WHEEL_THRESHOLD = 48;
+
+const clearStoredTimeouts = (ref: {
+  mid?: ReturnType<typeof setTimeout>;
+  end?: ReturnType<typeof setTimeout>;
+}) => {
+  if (ref.mid !== undefined) clearTimeout(ref.mid);
+  if (ref.end !== undefined) clearTimeout(ref.end);
+  ref.mid = undefined;
+  ref.end = undefined;
+};
 
 export const ScrollOrbitSection = () => {
   const sectionRef = useRef<HTMLElement>(null);
@@ -105,36 +135,59 @@ export const ScrollOrbitSection = () => {
 
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const detailPanelRef = useRef<HTMLDivElement>(null);
+  const detailWheelSwitchingRef = useRef(false);
+  const detailSwitchTimersRef = useRef<{
+    mid?: ReturnType<typeof setTimeout>;
+    end?: ReturnType<typeof setTimeout>;
+  }>({});
+  const [detailFadedOut, setDetailFadedOut] = useState(false);
 
   const { scrollYProgress: collectionTitleProgress } = useScroll({
     target: sectionRef,
-    offset: ["start 0.9", "start 0.48"],
+    offset: ["start start", "end end"],
   });
-  const titleY = useTransform(
-    collectionTitleProgress,
-    [0, 1],
-    [
-      TITLE_REST_Y + TITLE_ENTER_EXTRA + TITLE_SHIFT_LOWER_CM,
-      TITLE_REST_Y + TITLE_SHIFT_LOWER_CM,
-    ],
-  );
-  const titleOpacity = useTransform(
-    collectionTitleProgress,
-    [0, 0.45, 1],
-    [0, 0.88, 1],
-  );
-  const titleBlurPx = useTransform(
-    collectionTitleProgress,
-    [0, 0.5, 1],
-    [18, 5, 0],
-  );
-  const titleFilter = useTransform(titleBlurPx, (b) => `blur(${b}px)`);
+  const titleY = useTransform(collectionTitleProgress, (p) => {
+    if (p < COLLECTION_TITLE_PHASE_ENTER_END) {
+      const t = p / COLLECTION_TITLE_PHASE_ENTER_END;
+      const e = smoothstep01(t);
+      return (
+        COLLECTION_TITLE_Y_START +
+        (COLLECTION_TITLE_Y_VISIBLE - COLLECTION_TITLE_Y_START) * e
+      );
+    }
+    if (p < COLLECTION_TITLE_PHASE_EXIT_START) {
+      return COLLECTION_TITLE_Y_VISIBLE;
+    }
+    const u =
+      (p - COLLECTION_TITLE_PHASE_EXIT_START) /
+      (1 - COLLECTION_TITLE_PHASE_EXIT_START);
+    return (
+      COLLECTION_TITLE_Y_VISIBLE +
+      (COLLECTION_TITLE_Y_END - COLLECTION_TITLE_Y_VISIBLE) *
+        easeOutCubic01(u)
+    );
+  });
+  const titleOpacity = useTransform(collectionTitleProgress, (p) => {
+    if (p < COLLECTION_TITLE_PHASE_ENTER_END) {
+      return smoothstep01(p / COLLECTION_TITLE_PHASE_ENTER_END);
+    }
+    if (p < COLLECTION_TITLE_PHASE_EXIT_START) {
+      return 1;
+    }
+    const u =
+      (p - COLLECTION_TITLE_PHASE_EXIT_START) /
+      (1 - COLLECTION_TITLE_PHASE_EXIT_START);
+    return 1 - easeOutCubic01(u);
+  });
 
   setDetailIndexRef.current = setDetailIndex;
 
   const closeDetail = useCallback(() => {
+    clearStoredTimeouts(detailSwitchTimersRef.current);
     snapIndexRef.current = null;
     detailOpenedForSnapRef.current = null;
+    detailWheelSwitchingRef.current = false;
+    setDetailFadedOut(false);
     setDetailIndex(null);
   }, []);
 
@@ -151,6 +204,64 @@ export const ScrollOrbitSection = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [closeDetail]);
+
+  useEffect(() => {
+    if (detailIndex === null) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [detailIndex]);
+
+  useEffect(() => {
+    if (detailIndex !== null) return;
+    clearStoredTimeouts(detailSwitchTimersRef.current);
+    detailWheelSwitchingRef.current = false;
+    setDetailFadedOut(false);
+  }, [detailIndex]);
+
+  const scheduleDetailSwitchByWheel = useCallback(
+    (to: number) => {
+      clearStoredTimeouts(detailSwitchTimersRef.current);
+      detailWheelSwitchingRef.current = true;
+      setDetailFadedOut(true);
+      detailSwitchTimersRef.current.mid = setTimeout(() => {
+        detailSwitchTimersRef.current.mid = undefined;
+        snapIndexRef.current = to;
+        detailOpenedForSnapRef.current = to;
+        setDetailIndex(to);
+        setDetailFadedOut(false);
+        detailSwitchTimersRef.current.end = setTimeout(() => {
+          detailSwitchTimersRef.current.end = undefined;
+          detailWheelSwitchingRef.current = false;
+        }, DETAIL_SWITCH_HALF_MS);
+      }, DETAIL_SWITCH_HALF_MS);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (detailIndex === null) return;
+    const el = detailPanelRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (detailWheelSwitchingRef.current) return;
+      if (Math.abs(e.deltaY) < DETAIL_WHEEL_THRESHOLD) return;
+
+      const len = ORBIT_IMAGES.length;
+      const from = detailIndex;
+      const to =
+        e.deltaY > 0 ? (from + 1) % len : (from - 1 + len) % len;
+      scheduleDetailSwitchByWheel(to);
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [detailIndex, scheduleDetailSwitchByWheel]);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -234,8 +345,55 @@ export const ScrollOrbitSection = () => {
 
   const detail =
     detailIndex !== null ? detailForSrc(ORBIT_IMAGES[detailIndex]) : null;
-  const detailSrc =
-    detailIndex !== null ? ORBIT_IMAGES[detailIndex] : null;
+
+  const renderWatchDetailGrid = (idx: number, titleId?: string) => {
+    const src = ORBIT_IMAGES[idx];
+    const d = detailForSrc(src);
+    return (
+      <div className="grid max-h-[inherit] md:grid-cols-[1.1fr_1fr]">
+        <div className="relative flex min-h-[200px] items-center justify-center bg-gradient-to-b from-[#12121a] to-[#060608] px-8 py-10 md:min-h-0 md:py-14">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_70%,rgba(216,200,168,0.08),transparent_65%)]" />
+          <img
+            src={src}
+            alt=""
+            className="relative z-[1] max-h-[min(52vh,420px)] w-full max-w-[320px] object-contain drop-shadow-[0_32px_64px_rgba(0,0,0,0.55)] md:max-h-[min(60vh,480px)]"
+            draggable={false}
+          />
+        </div>
+        <div className="flex flex-col justify-center gap-6 border-t border-white/[0.08] p-8 md:border-l md:border-t-0 md:p-10 lg:p-12">
+          <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-[#c9baa0]/85">
+            Collection
+          </p>
+          <h3
+            id={titleId}
+            className="font-heading text-3xl font-medium tracking-tight text-white md:text-4xl lg:text-[2.6rem]"
+          >
+            {d.name}
+          </h3>
+          <p className="font-sans text-base font-light leading-relaxed text-white/72 md:text-lg">
+            {d.description}
+          </p>
+          <p className="font-sans text-sm uppercase tracking-[0.12em] text-[#c9baa0]/90">
+            {d.price}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              className="w-fit rounded-full border border-white/[0.2] bg-white/[0.07] px-8 py-3.5 font-sans text-xs uppercase tracking-[0.22em] text-white/95 shadow-[0_20px_48px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-[background-color,box-shadow] duration-300 hover:border-white/[0.28] hover:bg-white/[0.11]"
+            >
+              View Details
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-[#c9baa0]/45 bg-[#c9baa0]/12 px-8 py-3.5 font-sans text-xs uppercase tracking-[0.2em] text-[#f0e6d4] shadow-[0_20px_48px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-[background-color,border-color] duration-300 hover:border-[#c9baa0]/60 hover:bg-[#c9baa0]/20"
+            >
+              Buy
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <section
@@ -256,11 +414,10 @@ export const ScrollOrbitSection = () => {
       <div className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-6 pb-3 sm:pt-8 sm:pb-4">
         <div className="relative w-full">
           <motion.h2
-            className="mb-[calc(1.5rem+1cm)] text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity,filter] md:mb-[calc(2rem+1cm)] md:text-5xl lg:text-6xl"
+            className="mb-[calc(1.5rem+1cm)] text-center font-heading text-4xl font-medium tracking-tight text-white will-change-[transform,opacity] md:mb-[calc(2rem+1cm)] md:text-5xl lg:text-6xl"
             style={{
               y: titleY,
               opacity: titleOpacity,
-              filter: titleFilter,
             }}
           >
             Collection
@@ -341,40 +498,18 @@ export const ScrollOrbitSection = () => {
           >
             ×
           </button>
-          {detail && detailSrc ? (
-            <div className="grid max-h-[inherit] md:grid-cols-[1.1fr_1fr]">
-              <div className="relative flex min-h-[200px] items-center justify-center bg-gradient-to-b from-[#12121a] to-[#060608] px-8 py-10 md:min-h-0 md:py-14">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_70%,rgba(216,200,168,0.08),transparent_65%)]" />
-                <img
-                  src={detailSrc}
-                  alt=""
-                  className="relative z-[1] max-h-[min(52vh,420px)] w-full max-w-[320px] object-contain drop-shadow-[0_32px_64px_rgba(0,0,0,0.55)] md:max-h-[min(60vh,480px)]"
-                  draggable={false}
-                />
-              </div>
-              <div className="flex flex-col justify-center gap-6 border-t border-white/[0.08] p-8 md:border-l md:border-t-0 md:p-10 lg:p-12">
-                <p className="font-sans text-[10px] uppercase tracking-[0.28em] text-[#c9baa0]/85">
-                  Collection
-                </p>
-                <h3
-                  id="watch-detail-title"
-                  className="font-heading text-3xl font-medium tracking-tight text-white md:text-4xl lg:text-[2.6rem]"
-                >
-                  {detail.name}
-                </h3>
-                <p className="font-sans text-base font-light leading-relaxed text-white/72 md:text-lg">
-                  {detail.description}
-                </p>
-                <p className="font-sans text-sm uppercase tracking-[0.12em] text-[#c9baa0]/90">
-                  {detail.price}
-                </p>
-                <button
-                  type="button"
-                  className="mt-2 w-fit rounded-full border border-white/[0.2] bg-white/[0.07] px-8 py-3.5 font-sans text-xs uppercase tracking-[0.22em] text-white/95 shadow-[0_20px_48px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-[background-color,box-shadow] duration-300 hover:border-white/[0.28] hover:bg-white/[0.11]"
-                >
-                  View Details
-                </button>
-              </div>
+          {detail && detailIndex !== null ? (
+            <div
+              className={`relative min-h-[min(65vh,720px)] w-full transition-[opacity,transform] ease-out ${
+                detailFadedOut
+                  ? "pointer-events-none opacity-0 translate-y-2"
+                  : "opacity-100 translate-y-0"
+              }`}
+              style={{
+                transitionDuration: `${DETAIL_SWITCH_HALF_MS}ms`,
+              }}
+            >
+              {renderWatchDetailGrid(detailIndex, "watch-detail-title")}
             </div>
           ) : null}
         </div>
