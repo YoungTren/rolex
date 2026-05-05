@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 
 const VIDEO_SRC = "/videos/boutique-porsche.mp4";
 
+const SCROLL_LERP = 0.14;
+
 const TEXT_REVEAL_MS = 3200;
 
 const TITLE_LINE = "a wonderful time to live";
@@ -24,6 +26,8 @@ const charReveal = (progress: number, charIndex: number, n: number) => {
 
 export const RolexBoutiqueScrollSection = () => {
   const titleWrapRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const titleWrap = titleWrapRef.current;
@@ -54,9 +58,62 @@ export const RolexBoutiqueScrollSection = () => {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
+  useEffect(() => {
+    const section = sectionRef.current;
+    const video = videoRef.current;
+    if (!section || !video) return;
+
+    video.pause();
+    video.currentTime = 0;
+    video.removeAttribute("autoplay");
+    video.removeAttribute("loop");
+
+    let rafId = 0;
+    let smoothedTime = 0;
+
+    const tick = () => {
+      rafId = requestAnimationFrame(tick);
+
+      if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+      const duration = video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+
+      const rect = section.getBoundingClientRect();
+      const scrollY = window.scrollY;
+      const sectionTop = rect.top + scrollY;
+      const vh = window.innerHeight;
+      const h = Math.max(1, section.offsetHeight);
+      const scrollableDistance = h + vh;
+      const rawProgress =
+        (scrollY + vh - sectionTop) / Math.max(1, scrollableDistance);
+      const progress = Math.min(1, Math.max(0, rawProgress));
+
+      const targetTime = progress * duration;
+      smoothedTime += (targetTime - smoothedTime) * SCROLL_LERP;
+      if (Math.abs(smoothedTime - targetTime) < 0.03) {
+        smoothedTime = targetTime;
+      }
+
+      try {
+        if (Math.abs(video.currentTime - smoothedTime) > 0.016) {
+          video.currentTime = smoothedTime;
+        }
+      } catch {
+        /* seek not ready */
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
   return (
-    <section className="relative -mt-[300px] h-screen w-full max-w-none overflow-hidden bg-black">
+    <section
+      ref={sectionRef}
+      className="relative -mt-[300px] h-screen w-full max-w-none overflow-hidden bg-black"
+    >
       <video
+        ref={videoRef}
         src={VIDEO_SRC}
         className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
         style={{
@@ -67,8 +124,6 @@ export const RolexBoutiqueScrollSection = () => {
           objectFit: "cover",
         }}
         preload="auto"
-        autoPlay
-        loop
         playsInline
         muted
         aria-hidden

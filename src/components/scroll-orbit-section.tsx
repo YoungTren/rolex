@@ -182,18 +182,19 @@ export const ScrollOrbitSection = () => {
   useEffect(() => {
     const section = sectionRef.current;
     const title = collectionTitleRef.current;
-    const sticky = collectionStickyRef.current;
     if (!section || !title) return;
 
     gsap.registerPlugin(ScrollTrigger);
     ScrollTrigger.getById("collection-title-y")?.kill();
 
     const ctx = gsap.context(() => {
-      const trigger = sticky ?? section;
+      const trigger = section;
       const phaseExit =
         1 -
         COLLECTION_TITLE_PHASE_SCROLL_ONLY -
         COLLECTION_TITLE_PHASE_ENTER;
+
+      gsap.set(title, { y: COLLECTION_TITLE_HIDDEN_Y, opacity: 0 });
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -470,7 +471,7 @@ export const ScrollOrbitSection = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative mt-[clamp(60px,5vw,100px)] mb-8 overflow-hidden bg-[#050507] pt-[clamp(16px,2.5vw,28px)] sm:mb-10"
+      className="relative mt-[clamp(60px,5vw,100px)] mb-8 overflow-x-hidden bg-[#050507] pt-[clamp(16px,2.5vw,28px)] sm:mb-10"
       style={{ minHeight: `${SECTION_HEIGHT_VH}vh` }}
     >
       <div
@@ -487,10 +488,10 @@ export const ScrollOrbitSection = () => {
         ref={collectionStickyRef}
         className="sticky top-0 flex h-screen w-full flex-col items-center justify-center px-4 pt-3 pb-1.5 sm:pt-4 sm:pb-2"
       >
-        <div className="relative w-full">
+        <div className="relative z-[2] w-full">
           <h2
             ref={collectionTitleRef}
-            className="mb-[calc(0.75rem+0.5cm)] text-center font-heading text-7xl font-medium tracking-tight text-white will-change-[transform,opacity] md:mb-[calc(1rem+0.5cm)] md:text-8xl lg:text-[7.5rem]"
+            className="relative z-[2] mb-[calc(0.75rem+0.5cm)] text-center font-heading text-7xl font-medium tracking-tight text-white will-change-[transform,opacity] md:mb-[calc(1rem+0.5cm)] md:text-8xl lg:text-[7.5rem]"
           >
             Collection
           </h2>
