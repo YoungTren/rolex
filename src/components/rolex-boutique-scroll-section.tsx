@@ -6,9 +6,9 @@ const VIDEO_SRC = "/videos/boutique-porsche.mp4";
 
 const SCROLL_LERP = 0.14;
 
-const TEXT_REVEAL_MS = 3200;
+const TITLE_SCROLL_LERP = 0.16;
 
-const TITLE_LINE = "a wonderful time to live";
+const TITLE_LINE = "A wonderful time to live";
 
 const splitTitle = TITLE_LINE.split("");
 
@@ -30,14 +30,22 @@ export const RolexBoutiqueScrollSection = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    const section = sectionRef.current;
+    const video = videoRef.current;
     const titleWrap = titleWrapRef.current;
-    if (!titleWrap) return;
+    if (!section || !video || !titleWrap) return;
 
-    const syncTitle = (progress: number) => {
+    video.pause();
+    video.currentTime = 0;
+    video.removeAttribute("autoplay");
+    video.removeAttribute("loop");
+
+    const syncTitle = (revealProgress: number) => {
       const els = titleWrap.querySelectorAll<HTMLElement>("[data-char]");
       const n = els.length;
+      const p = Math.min(1, Math.max(0, revealProgress));
       els.forEach((el, i) => {
-        const o = charReveal(progress, i, n);
+        const o = charReveal(p, i, n);
         el.style.opacity = String(o);
         el.style.transform = `translateY(${10 * (1 - o)}px)`;
       });
@@ -45,38 +53,12 @@ export const RolexBoutiqueScrollSection = () => {
 
     syncTitle(0);
 
-    const start = performance.now();
-    let rafId = 0;
-
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / TEXT_REVEAL_MS);
-      syncTitle(t);
-      if (t < 1) rafId = requestAnimationFrame(tick);
-    };
-
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    const video = videoRef.current;
-    if (!section || !video) return;
-
-    video.pause();
-    video.currentTime = 0;
-    video.removeAttribute("autoplay");
-    video.removeAttribute("loop");
-
     let rafId = 0;
     let smoothedTime = 0;
+    let smoothedTitleReveal = 0;
 
     const tick = () => {
       rafId = requestAnimationFrame(tick);
-
-      if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
-      const duration = video.duration;
-      if (!Number.isFinite(duration) || duration <= 0) return;
 
       const rect = section.getBoundingClientRect();
       const scrollY = window.scrollY;
@@ -86,9 +68,17 @@ export const RolexBoutiqueScrollSection = () => {
       const scrollableDistance = h + vh;
       const rawProgress =
         (scrollY + vh - sectionTop) / Math.max(1, scrollableDistance);
-      const progress = Math.min(1, Math.max(0, rawProgress));
+      const scrollProgress = Math.min(1, Math.max(0, rawProgress));
 
-      const targetTime = progress * duration;
+      smoothedTitleReveal +=
+        (scrollProgress - smoothedTitleReveal) * TITLE_SCROLL_LERP;
+      syncTitle(smoothedTitleReveal);
+
+      if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+      const duration = video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+
+      const targetTime = scrollProgress * duration;
       smoothedTime += (targetTime - smoothedTime) * SCROLL_LERP;
       if (Math.abs(smoothedTime - targetTime) < 0.03) {
         smoothedTime = targetTime;
