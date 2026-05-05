@@ -65,7 +65,8 @@ export const RolexBoutiqueScrollSection = () => {
       const sectionTop = rect.top + scrollY;
       const vh = window.innerHeight;
       const h = Math.max(1, section.offsetHeight);
-      const scrollableDistance = h + vh;
+      /** Last block: scroll numerator caps at `h`; use `h` here so progress reaches 1 at max scroll. */
+      const scrollableDistance = h;
       const rawProgress =
         (scrollY + vh - sectionTop) / Math.max(1, scrollableDistance);
       const scrollProgress = Math.min(1, Math.max(0, rawProgress));
@@ -78,7 +79,10 @@ export const RolexBoutiqueScrollSection = () => {
       const duration = video.duration;
       if (!Number.isFinite(duration) || duration <= 0) return;
 
-      const targetTime = scrollProgress * duration;
+      let targetTime = Math.min(duration, scrollProgress * duration);
+      if (scrollProgress >= 0.999) {
+        targetTime = duration;
+      }
       smoothedTime += (targetTime - smoothedTime) * SCROLL_LERP;
       if (Math.abs(smoothedTime - targetTime) < 0.03) {
         smoothedTime = targetTime;
