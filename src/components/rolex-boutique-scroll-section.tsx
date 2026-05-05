@@ -5,10 +5,10 @@ import { useEffect, useRef } from "react";
 const VIDEO_SRC = "/videos/boutique-porsche.mp4";
 
 /** Taller than 100vh so one full video scrub uses more wheel travel (slower feel). */
-const SECTION_SCROLL_HEIGHT_VH = 130;
+const SECTION_SCROLL_HEIGHT_VH = 175;
 
 /** After this scroll fraction through the section, video/text scrub starts (0 = top, 1 = end). */
-const SCRUB_START_PROGRESS = 0.5;
+const SCRUB_START_PROGRESS = 0.25;
 
 const SCROLL_LERP = 0.14;
 
