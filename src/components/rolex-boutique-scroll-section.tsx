@@ -4,6 +4,12 @@ import { useEffect, useRef } from "react";
 
 const VIDEO_SRC = "/videos/boutique-porsche.mp4";
 
+/** Taller than 100vh so one full video scrub uses more wheel travel (slower feel). */
+const SECTION_SCROLL_HEIGHT_VH = 130;
+
+/** After this scroll fraction through the section, video/text scrub starts (0 = top, 1 = end). */
+const SCRUB_START_PROGRESS = 0.5;
+
 const SCROLL_LERP = 0.14;
 
 const TITLE_SCROLL_LERP = 0.16;
@@ -71,16 +77,22 @@ export const RolexBoutiqueScrollSection = () => {
         (scrollY + vh - sectionTop) / Math.max(1, scrollableDistance);
       const scrollProgress = Math.min(1, Math.max(0, rawProgress));
 
+      const scrubProgress =
+        scrollProgress <= SCRUB_START_PROGRESS
+          ? 0
+          : (scrollProgress - SCRUB_START_PROGRESS) /
+            (1 - SCRUB_START_PROGRESS);
+
       smoothedTitleReveal +=
-        (scrollProgress - smoothedTitleReveal) * TITLE_SCROLL_LERP;
+        (scrubProgress - smoothedTitleReveal) * TITLE_SCROLL_LERP;
       syncTitle(smoothedTitleReveal);
 
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
       const duration = video.duration;
       if (!Number.isFinite(duration) || duration <= 0) return;
 
-      let targetTime = Math.min(duration, scrollProgress * duration);
-      if (scrollProgress >= 0.999) {
+      let targetTime = Math.min(duration, scrubProgress * duration);
+      if (scrubProgress >= 0.999) {
         targetTime = duration;
       }
       smoothedTime += (targetTime - smoothedTime) * SCROLL_LERP;
@@ -104,55 +116,58 @@ export const RolexBoutiqueScrollSection = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative -mt-[300px] h-screen w-full max-w-none overflow-hidden bg-black"
+      className="relative -mt-[300px] w-full max-w-none bg-black"
+      style={{ minHeight: `${SECTION_SCROLL_HEIGHT_VH}vh` }}
     >
-      <video
-        ref={videoRef}
-        src={VIDEO_SRC}
-        className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
-        style={{
-          width: "100vw",
-          height: "100vh",
-          minWidth: "100%",
-          minHeight: "100%",
-          objectFit: "cover",
-        }}
-        preload="auto"
-        playsInline
-        muted
-        aria-hidden
-      />
-
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[clamp(150px,22vh,250px)] bg-gradient-to-t from-black via-black/[0.72] via-[40%] to-transparent"
-      />
-
-      <div
-        ref={titleWrapRef}
-        className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 md:px-12"
-      >
-        <p
-          className="font-heading max-w-[95vw] text-center text-5xl font-medium leading-[1.1] tracking-[-0.02em] md:text-7xl lg:text-8xl xl:text-9xl"
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
+        <video
+          ref={videoRef}
+          src={VIDEO_SRC}
+          className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
           style={{
-            fontWeight: 500,
+            width: "100vw",
+            height: "100vh",
+            minWidth: "100%",
+            minHeight: "100%",
+            objectFit: "cover",
           }}
-          aria-label={TITLE_LINE}
+          preload="auto"
+          playsInline
+          muted
+          aria-hidden
+        />
+
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-[clamp(150px,22vh,250px)] bg-gradient-to-t from-black via-black/[0.72] via-[40%] to-transparent"
+        />
+
+        <div
+          ref={titleWrapRef}
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6 md:px-12"
         >
-          {splitTitle.map((ch, i) => (
-            <span
-              key={`${ch}-${i}`}
-              data-char
-              className="inline-block text-white [text-shadow:0_0_1px_rgba(255,255,255,0.35)]"
-              style={{
-                opacity: 0,
-                color: "rgba(255,255,255,0.97)",
-              }}
-            >
-              {ch === " " ? "\u00A0" : ch}
-            </span>
-          ))}
-        </p>
+          <p
+            className="font-heading max-w-[95vw] text-center text-5xl font-medium leading-[1.1] tracking-[-0.02em] md:text-7xl lg:text-8xl xl:text-9xl"
+            style={{
+              fontWeight: 500,
+            }}
+            aria-label={TITLE_LINE}
+          >
+            {splitTitle.map((ch, i) => (
+              <span
+                key={`${ch}-${i}`}
+                data-char
+                className="inline-block text-white [text-shadow:0_0_1px_rgba(255,255,255,0.35)]"
+                style={{
+                  opacity: 0,
+                  color: "rgba(255,255,255,0.97)",
+                }}
+              >
+                {ch === " " ? "\u00A0" : ch}
+              </span>
+            ))}
+          </p>
+        </div>
       </div>
     </section>
   );
