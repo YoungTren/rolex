@@ -69,11 +69,12 @@ export const RolexScrollHero = () => {
       });
     };
 
-    const onLoadedMetadata = () => {
+    const onVideoReady = () => {
       linkScrollToVideo();
     };
 
-    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("loadedmetadata", onVideoReady);
+    video.addEventListener("canplay", onVideoReady);
 
     if (
       video.readyState >= HTMLMediaElement.HAVE_METADATA &&
@@ -96,7 +97,8 @@ export const RolexScrollHero = () => {
     return () => {
       cancelAnimationFrame(outerRaf);
       cancelAnimationFrame(innerRaf);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("loadedmetadata", onVideoReady);
+      video.removeEventListener("canplay", onVideoReady);
       window.removeEventListener("resize", onResize);
 
       progressTween?.scrollTrigger?.kill();
@@ -119,13 +121,12 @@ export const RolexScrollHero = () => {
       <video
         ref={videoRef}
         src={VIDEO_SRC}
-        className="pointer-events-none absolute inset-0 z-0 object-cover will-change-transform"
+        className="pointer-events-none absolute inset-0 z-0 size-full max-h-none max-w-none min-h-full min-w-full object-cover"
         style={{
-          width: "100vw",
-          height: "100vh",
-          minWidth: "100%",
-          minHeight: "100%",
           objectFit: "cover",
+          objectPosition: "center center",
+          backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
         }}
         preload="auto"
         playsInline
