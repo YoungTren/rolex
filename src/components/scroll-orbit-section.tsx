@@ -43,9 +43,9 @@ const ORBIT_SUBJECT_MAX_PX: Record<(typeof ORBIT_IMAGES)[number], number> = {
   "/images/watch-carousel/watch-2.png": 841,
   "/images/watch-carousel/watch-3.png": 914,
   "/images/watch-carousel/watch-4.png": 814,
-  "/images/watch-carousel/watch-5.png": 981,
+  "/images/watch-carousel/watch-5.png": 984,
   "/images/watch-carousel/watch-6.png": 820,
-  "/images/watch-carousel/watch-7.png": 865,
+  "/images/watch-carousel/watch-7.png": 868,
   "/images/watch-carousel/watch-8.png": 814,
 };
 
